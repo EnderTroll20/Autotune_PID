@@ -1,80 +1,75 @@
-//variables globales
-int valor;
-int numero;
-int x,p,x1,x2;
-int valores[200]={};
-float derivada[200]={}; 
-float diff;
+byte valor=55;//valor de 55 combinacion a 6 bits binario 110111 
+long valor1=0;
+long lectura[160]={};
+long enteros[160]={};
+float calculo[160]={};
+float d,m,L,T,Kp,Td,Ti;
+float error_pas,error_pas2=0;
+long lee,ac,dc;
+long sum,maxvalor,posicion=0;
+
+
 void setup() {
-  
-    Serial.begin(9600);
+// put your setup code here, to run once:
+//all outputs (1:output)
+  DDRD = B11111111;//all as output
+  Serial.begin(9600);
+  pinMode(13,OUTPUT);
 
-pinMode(2,OUTPUT);
-pinMode(3,OUTPUT);
-pinMode(4,OUTPUT);
-pinMode(5,OUTPUT);
-pinMode(6,OUTPUT);
-pinMode(7,OUTPUT);
-pinMode(8,OUTPUT);
-pinMode(9,OUTPUT);
-pinMode(A0,INPUT);
-
- digitalWrite(2,0); 
- digitalWrite(3,0); 
- digitalWrite(4,0); 
- digitalWrite(5,0); 
- digitalWrite(6,0); 
- digitalWrite(7,0); 
- digitalWrite(8,0); 
- digitalWrite(9,0); 
-}
- 
-int binario(int x)                //funcion entre setup y loop
-{
- digitalWrite(2,bitRead(x,7)); 
- digitalWrite(3,bitRead(x,6)); 
- digitalWrite(4,bitRead(x,5)); 
- digitalWrite(5,bitRead(x,4)); 
- digitalWrite(6,bitRead(x,3)); 
- digitalWrite(7,bitRead(x,2)); 
- digitalWrite(8,bitRead(x,1)); 
- digitalWrite(9,bitRead(x,0)); 
 }
 
 void loop() {
- 
-    Serial.println("inicio"); 
-    valor=0;                   
-    numero=binario(valor);
-     delay(1000);
-    
-    for(int i=0; i<200 ; i++){
-    valor=53;                   
-    numero=binario(valor);
-    x=analogRead(A0);
-    valores[i]=x;
-    Serial.println(x);
-    delay(10);
-   }
-    
-    Serial.println("ya guardé");
-    Serial.println("Estoy derivando, espera");
+  digitalWrite(13,LOW);
+  delay(500);//delay de arranque 
+  PORTL = valor;
 
-        for(int z=0; z<200 ; z++){
-          x1=valores[z+1];
-          x2=valores[z];
-          diff=(x1-x2)/0.01;
-          derivada[z]=diff;
-          delay(10);
-          }
-
-     Serial.println("derivé");
-     Serial.println("mostraré");
-
-          for(int w=0; w<200 ; w++){
-          Serial.println(derivada[w]);
-          delay(10);
-          }
-
-       Serial.println("YA QUEDÓ REY, YA QUEDÓ PAPS");   
+  for (int a=0;a<160;a++){//lee y almacena
+    PORTL = valor;//carga valor al puerto l pines del 49 al 42
+    lee=analogRead(A15);
+    lectura[a]=lee;
+    Serial.println(lectura[a]);
+    delay(90);//tiempo de muestreo 30ms para evitar valores repetidos
   }
+
+
+  for(int b=0; b<160 ; b++){//deriva
+    sum=b+1;
+    ac=lectura[sum];
+    dc=lectura[b];
+    d=((ac-dc)/0.09);//valor siguente menos anterior entre tiempo de muestreo
+    calculo[b]=d;
+    if(maxvalor<calculo[b]){   //Encontrar valor máximo y su posición en el vector
+      maxvalor=enteros[b];
+      posicion=b;}
+    delay(30);
+  }
+
+  digitalWrite(13,HIGH);
+
+  for(int c=0; c<=160; c++){
+  Serial.println(calculo[c]);
+  delay(30);
+  }
+  
+  m = (calculo[posicion+1]-calculo[posicion])/((0.09*(posicion+1))-(0.09*posicion));   //Calculo de la pendiente
+  
+  L = ((0.09*posicion)-calculo[posicion])/m;
+  T = ((calculo[160]-calculo[posicion])/m)+(0.09*posicion)-L;
+  
+  Kp = 1.2*(T/L);   //Ganancias del PID
+  Ti = 2*L;
+  Td = 0.5*L;
+  
+  PORTL = 0;//carga valor al puerto l pines del 49 al 42
+  delay(20000);//tiempo de descarga del filtro
+
+  for(int g=0; g<=160; g++){
+    error = 152 - analogRead(A15);
+    deri_a = error - error_pas;
+    integ = (0.09*error) + error_pas2;
+    deriv = deri_a/0.09;
+    error_pas = deri_a;
+    error_pas2 = error;
+    PID = (Kp*error) + ((Kp/Ti)*integ) + ((Kp*Td)*deriv); 
+  }
+}
